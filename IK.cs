@@ -112,16 +112,10 @@ public class Script_Instance : GH_ScriptInstance
         if (i == 0)
         {
           this.Segments[i].B = (this.TargetPoint - Point3d.Origin);
-          this.Segments[i].A = this.Segments[i + 1].A;
-        }
-        else if (i == (this.Segments.Count - 1))
-        {
-          this.Segments[i].B = new Vector3d(0, 0, 0);
-          this.Segments[i].Update();
         }
         else
         {
-          this.Segments[i].B = this.Segments[i].A + this.Segments[i].Update();
+          this.Segments[i].Update();
         }
       }
     }
@@ -157,15 +151,17 @@ public class Script_Instance : GH_ScriptInstance
     }
 
     // Functions
-    public Vector3d Update()
+    public void Update()
     {
       Vector3d bTarget = this.ParentSegment.B;
       // bTarget - this.A
       Vector3d direction = Vector3d.Subtract(bTarget, this.A);
+      double x = direction.X;
+      double y = direction.Y;
       direction.Unitize();
       direction = Vector3d.Multiply(direction, (this.Length * (-1)));
       this.A = Vector3d.Add(bTarget, direction);
-      return direction;
+      this.B = this.A + direction;
     }
 
     public void FollowParent()
