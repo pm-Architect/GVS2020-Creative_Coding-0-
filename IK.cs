@@ -82,23 +82,16 @@ public class Script_Instance : GH_ScriptInstance
     public RobotArm(int numSeg, double segLen, Point3d targetPt)
     {
       this.Segments = new List<Segment>();
+      // Add the first segment
+      Segment seg1 = new Segment(segLen, 0);
+      this.Segments.Add(seg1);
       // for (variables; condition; change;)
       for (var x = 0; x < numSeg; x++)
       {
         // Add a segment
-        Segment seg = new Segment(segLen, x);
+        Segment seg = new Segment(segLen, (x + 1));
+        this.Segments[x].ParentSegment = seg;
         this.Segments.Add(seg);
-        // Check whether the segment is the first segment
-        if (x == 0)
-        {
-          // Do nothing
-        }
-        else
-        {
-          // If not, assign a parent segment to follow
-          seg.ParentSegment = this.Segments[(x - 1)];
-        }
-
       }
       this.TargetPoint = targetPt;
     }
@@ -106,17 +99,26 @@ public class Script_Instance : GH_ScriptInstance
     // Functions
     public void Update()
     {
-      // For each Segment, call Segment.Update();
+      // For each Segment, Update A Vector;
       for (var i = 0; i < this.Segments.Count; i++)
       {
         if (i == 0)
         {
-          this.Segments[i].B = (this.TargetPoint - Point3d.Origin);
+          this.Segments[i].UpdateA((this.TargetPoint - Point3d.Origin));
         }
         else
         {
-          this.Segments[i].Update();
+          this.Segments[i].UpdateA(this.Segments[i - 1].A);
         }
+      }
+      // For the last Segment, Update it's B Vector;
+      this.Segments[this.Segments.Count - 1].A = Vector3d.Zero;
+      this.Segments[this.Segments.Count - 1].UpdateB();
+      // For each Segment, Update B Vector;
+      for (var i = (this.Segments.Count - 2); i >= 0; i--)
+      {
+        this.Segments[i].A = this.Segments[i + 1].B;
+        this.Segments[i].UpdateB();
       }
     }
 
@@ -140,6 +142,7 @@ public class Script_Instance : GH_ScriptInstance
     public Vector3d B {get; set;}
     public double Length {get; set;}
     public int Index {get; set;}
+    public Vector3d Diff {get; set;}
     public Segment ParentSegment {get; set;}
 
     // Constructor
@@ -151,22 +154,22 @@ public class Script_Instance : GH_ScriptInstance
     }
 
     // Functions
-    public void Update()
+    public void UpdateA(Vector3d target)
     {
-      Vector3d bTarget = this.ParentSegment.B;
-      // bTarget - this.A
-      Vector3d direction = Vector3d.Subtract(bTarget, this.A);
-      double x = direction.X;
-      double y = direction.Y;
-      direction.Unitize();
-      direction = Vector3d.Multiply(direction, (this.Length * (-1)));
-      this.A = Vector3d.Add(bTarget, direction);
-      this.B = this.A + direction;
+      if (this.ParentSegment != null)
+      {
+        Vector3d dir = Vector3d.Subtract(target, this.A);
+        dir.Unitize();
+        this.Diff = dir;
+        dir = Vector3d.Multiply(dir, this.Length);
+        dir = Vector3d.Negate(dir);
+        this.A = Vector3d.Add(target, dir);
+      }
     }
 
-    public void FollowParent()
+    public void UpdateB()
     {
-
+      this.B = ((this.A) + (this.Diff * this.Length));
     }
 
     public Line Show()
@@ -174,6 +177,14 @@ public class Script_Instance : GH_ScriptInstance
       return new Line((Point3d.Origin + this.A), (Point3d.Origin + this.B));
     }
 
+    public static double GetAngleBetween(Vector3d x, Vector3d y)
+    {
+      double angleOut = 0.0;
+      angleOut = Vector3d.VectorAngle(x, y);
+      x.Rotate(RhinoMath.ToRadians(90), Vector3d.ZAxis);
+      if (Vector3d.Multiply(x, y) < 0) angleOut = (angleOut * (-1));
+      return angleOut;
+    }
   }
   // </Custom additional code> 
 
